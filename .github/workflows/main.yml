@@ -1,4 +1,4 @@
-جname: Deploy Vite Site to Pages
+name: Deploy Vite Site to Pages
 
 on:
   push:
@@ -30,9 +30,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-  run: npm install --legacy-peer-deps
-
-
+        run: npm install --legacy-peer-deps
 
       - name: Build project
         run: npm run build
