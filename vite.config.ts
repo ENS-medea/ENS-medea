@@ -1,10 +1,12 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
+    // تحديد المسار الرئيسي للمشروع على GitHub Pages
+    base: '/ENS-medea/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
