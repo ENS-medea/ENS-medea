@@ -40,7 +40,8 @@ import {
   uploadImageToImgBB,
   DEFAULT_SPECIALIZATIONS,
   subscribeSpecializations,
-  saveSpecializationsToFirestore
+  saveSpecializationsToFirestore,
+  uploadPdfToCatbox
 } from './services/firebase';
 import { 
   calculateAutomatedLikes, 
@@ -295,6 +296,7 @@ export default function App() {
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isSubmittingLesson, setIsSubmittingLesson] = useState(false);
   const [stagedPdfs, setStagedPdfs] = useState<AttachedPdf[]>([]);
+  const [isUploadingPdfs, setIsUploadingPdfs] = useState(false);
   const [customPdfCoverUrl, setCustomPdfCoverUrl] = useState('');
   const lessonTitleInputRef = useRef<HTMLInputElement>(null);
 
@@ -307,6 +309,7 @@ export default function App() {
   const [editStagedImages, setEditStagedImages] = useState<AttachedImage[]>([]);
   const [editStagedPdfs, setEditStagedPdfs] = useState<AttachedPdf[]>([]);
   const [isUploadingEditImages, setIsUploadingEditImages] = useState(false);
+  const [isUploadingEditPdfs, setIsUploadingEditPdfs] = useState(false);
 
   // Search in module lessons
   const [lessonSearchQuery, setLessonSearchQuery] = useState('');
@@ -755,34 +758,43 @@ export default function App() {
     }
   };
 
-  // Staged PDF File Input Handler (Add Modal)
-  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Staged PDF File Input Handler (Add Modal) - Direct Catbox.moe Cloud Upload
+  const handlePdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
-    files.forEach(file => {
-      const sizeStr = file.size > 1024 * 1024 
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
-        : `${Math.round(file.size / 1024)} KB`;
+    setIsUploadingPdfs(true);
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setStagedPdfs(prev => [
-          ...prev,
-          {
-            id: `${Date.now()}-${Math.random()}`,
-            name: file.name || 'document.pdf',
-            size: sizeStr,
-            url: (event.target?.result as string) || '#',
-            coverImageUrl: customPdfCoverUrl.trim() || undefined,
-          },
-        ]);
-        setCustomPdfCoverUrl('');
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      for (const file of files) {
+        const sizeStr = file.size > 1024 * 1024 
+          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
+          : `${Math.round(file.size / 1024)} KB`;
 
-    e.target.value = '';
+        try {
+          const uploadResult = await uploadPdfToCatbox(file);
+          setStagedPdfs(prev => [
+            ...prev,
+            {
+              id: `${Date.now()}-${Math.random()}`,
+              name: file.name || 'document.pdf',
+              size: sizeStr,
+              url: uploadResult.downloadUrl,
+              downloadUrl: uploadResult.downloadUrl,
+              viewUrl: uploadResult.viewUrl,
+              coverImageUrl: customPdfCoverUrl.trim() || undefined,
+            },
+          ]);
+        } catch (err) {
+          console.warn('PDF upload error:', err);
+        }
+      }
+      setCustomPdfCoverUrl('');
+    } finally {
+      setIsUploadingPdfs(false);
+      e.target.value = '';
+    }
   };
 
   // Add Lesson (Admin only)
@@ -945,32 +957,41 @@ export default function App() {
     e.target.value = '';
   };
 
-  // Staged PDF File Input Handler (Edit Modal)
-  const handleEditPdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Staged PDF File Input Handler (Edit Modal) - Direct Catbox.moe Cloud Upload
+  const handleEditPdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
-    files.forEach(file => {
-      const sizeStr = file.size > 1024 * 1024 
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
-        : `${Math.round(file.size / 1024)} KB`;
+    setIsUploadingEditPdfs(true);
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setEditStagedPdfs(prev => [
-          ...prev,
-          {
-            id: `${Date.now()}-${Math.random()}`,
-            name: file.name,
-            size: sizeStr,
-            url: (event.target?.result as string) || '#',
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      for (const file of files) {
+        const sizeStr = file.size > 1024 * 1024 
+          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
+          : `${Math.round(file.size / 1024)} KB`;
 
-    e.target.value = '';
+        try {
+          const uploadResult = await uploadPdfToCatbox(file);
+          setEditStagedPdfs(prev => [
+            ...prev,
+            {
+              id: `${Date.now()}-${Math.random()}`,
+              name: file.name,
+              size: sizeStr,
+              url: uploadResult.downloadUrl,
+              downloadUrl: uploadResult.downloadUrl,
+              viewUrl: uploadResult.viewUrl,
+            },
+          ]);
+        } catch (err) {
+          console.warn('Edit PDF upload error:', err);
+        }
+      }
+    } finally {
+      setIsUploadingEditPdfs(false);
+      e.target.value = '';
+    }
   };
 
   // SAVE EDITED LESSON (Admin only)
@@ -1223,32 +1244,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white text-black font-['Cairo',sans-serif] selection:bg-black selection:text-white">
       
-      {/* 1. Top Header Bar: Slim, compact height (54px-60px) with prominent, larger logo */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-neutral-200 h-14 sm:h-[60px] max-h-14 sm:max-h-[60px] px-3 sm:px-6 md:px-8 shadow-2xs w-full flex items-center">
-        <div className="w-full flex items-center justify-between gap-3 h-full">
+      {/* 1. Top Header Bar: Reduced horizontal span by 37% (w-full max-w-[63%] mx-auto) & aligned cleanly */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-neutral-200 min-h-[74px] shadow-2xs w-full flex items-center justify-center">
+        <div className="w-full max-w-[63%] mx-auto flex items-center justify-between gap-3 h-full px-2 sm:px-4">
           
-          {/* Far Left Side: App Logo */}
-          <div className="flex items-center h-full shrink-0" dir="ltr">
-            {/* Logo Image (7-Tap Hidden Trigger: COMPLETELY SILENT AND INVISIBLE) */}
-            <div 
-              onClick={handleLogoTap}
-              className="flex items-center justify-center cursor-pointer select-none group relative h-full py-0.5"
-              title="ENS Medea"
-            >
-              <img 
-                src={logoAsset} 
-                alt="ENS Medea Logo" 
-                className="h-12 sm:h-[52px] w-auto max-h-[55px] object-contain transition-transform duration-200 active:scale-95 hover:opacity-95 rounded-sm scale-110 sm:scale-120 origin-left"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = NEW_LOGO_URL;
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Right side: Back button at extreme opposite side of the app logo + Admin Actions */}
-          <div className="flex items-center gap-2 sm:gap-3" dir="rtl">
-            {/* Return Button: Moved to the extreme opposite direction of the app logo (Far-Right in RTL) */}
+          {/* Far Left Side: App Logo & Back Button if inside module */}
+          <div className="flex items-center gap-2 sm:gap-3 h-full shrink-0" dir="ltr">
+            {/* Return Button: Placed on the far left when activeModule is open */}
             {activeModule && (
               <button
                 type="button"
@@ -1274,7 +1276,27 @@ export default function App() {
                 </svg>
               </button>
             )}
-            
+
+            {/* Logo Image (7-Tap Hidden Trigger: COMPLETELY SILENT AND INVISIBLE) */}
+            <div 
+              onClick={handleLogoTap}
+              className="flex items-center justify-center cursor-pointer select-none group relative h-full py-0.5"
+              title="ENS Medea"
+            >
+              <img 
+                src={logoAsset} 
+                alt="ENS Medea Logo" 
+                style={{ height: '70px' }}
+                className="w-auto object-contain transition-transform duration-200 active:scale-95 hover:opacity-95 rounded-sm origin-left"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = NEW_LOGO_URL;
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Right side: Admin Actions */}
+          <div className="flex items-center gap-2 sm:gap-3" dir="rtl">
             {/* Admin Status & Logout */}
             {isAdmin && (
               <div className="flex items-center gap-1.5 sm:gap-2 pl-2 border-l border-neutral-200">
@@ -1435,11 +1457,13 @@ export default function App() {
                         onClick={() => setActiveModuleId(mod.id)}
                         className="group relative rounded-3xl overflow-hidden min-h-[220px] sm:min-h-[240px] flex flex-col justify-between p-6 shadow-2xs hover:shadow-lg transition-all duration-300 cursor-pointer border border-neutral-200"
                       >
-                        {/* Background image filling the entire card */}
+                        {/* Background image filling the entire card (Optimized with lazy-loading & async decoding) */}
                         <img 
                           src={mod.thumbnailUrl} 
                           alt={mod.name} 
-                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 will-change-transform"
                         />
                         {/* High-contrast gradient overlay ensuring crystal-clear text readability */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/55 to-black/30 group-hover:from-black/95 transition-colors" />
@@ -1553,55 +1577,42 @@ export default function App() {
         {activeModule && (
           <div className="w-full max-w-5xl mx-auto space-y-6 px-1 sm:px-2 animate-in fade-in duration-150">
             
-            {/* Module Title Header at the top */}
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-200 mb-6">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-black tracking-tight font-['Readex_Pro',sans-serif]">
-                  {activeModule.name}
-                </h1>
-                <p className="text-xs text-neutral-500 mt-1">
-                  {selectedYear === 'first' ? 'السنة الأولى' : 'السنة الثانية'} · {sortedLessons.length} دروس ومحاضرات
-                </p>
-              </div>
-            </div>
+            {/* Module Top Action / Publishing Trigger (Clean Centered Layout - Module Title & Search Bar Removed) */}
+            {isAdmin && (
+              <div 
+                onClick={() => setIsAddLessonModalOpen(true)}
+                className="w-full bg-white hover:bg-neutral-50 rounded-3xl border border-neutral-200 p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer shadow-2xs hover:shadow-sm transition-all group mb-4"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={ADMIN_AVATAR_URL}
+                    alt="KAOUANE fares"
+                    className="w-10 h-10 rounded-full object-cover border border-neutral-200 shadow-2xs shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = avatarAsset;
+                    }}
+                  />
+                  <div className="text-right">
+                    <p className="text-xs sm:text-sm font-semibold text-neutral-500 group-hover:text-black transition-colors">
+                      انقر هنا لنشر درس، محاضرة، صور أو وثيقة PDF في هذا المقياس...
+                    </p>
+                    <p className="text-[11px] text-neutral-400 font-mono">
+                      بصفتك المشرف: KAOUANE fares
+                    </p>
+                  </div>
+                </div>
 
-            {/* Sleek Search Bar for Module Lessons */}
-            <div className="relative mb-6">
-              <div className="relative flex items-center">
-                <div className="absolute right-3.5 pointer-events-none text-neutral-400">
-                  <Search className="w-4 h-4" />
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-black text-white rounded-xl text-xs font-semibold shadow-2xs">
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>نشر جديد</span>
+                  </span>
+                  <div className="sm:hidden w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center">
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  value={lessonSearchQuery}
-                  onChange={(e) => setLessonSearchQuery(e.target.value)}
-                  placeholder="ابحث في دروس ومحاضرات وموارد هذا المقياس..."
-                  className="w-full pr-10 pl-10 py-3 bg-neutral-50 hover:bg-white focus:bg-white border border-neutral-200 rounded-2xl text-xs sm:text-sm text-black placeholder-neutral-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-2xs transition-all"
-                />
-                {lessonSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setLessonSearchQuery('')}
-                    className="absolute left-3 p-1 rounded-full text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors"
-                    title="مسح البحث"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
               </div>
-              {lessonSearchQuery.trim() && (
-                <div className="mt-2 px-1 flex items-center justify-between text-xs text-neutral-500">
-                  <span>نتائج البحث عن &quot;{lessonSearchQuery}&quot;: {filteredLessons.length} درس</span>
-                  <button
-                    type="button"
-                    onClick={() => setLessonSearchQuery('')}
-                    className="text-black underline hover:no-underline font-medium"
-                  >
-                    إلغاء البحث
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* 4. EXPANDED FULL-WIDTH INSTAGRAM-STYLE POSTS FEED */}
             <div className="space-y-7">
@@ -1648,12 +1659,23 @@ export default function App() {
                   return (
                     <article
                       key={lesson.id}
-                      className="w-full bg-white rounded-3xl border border-neutral-200 overflow-hidden shadow-2xs hover:shadow-sm transition-all"
+                      className="w-full bg-white rounded-3xl border border-neutral-200 overflow-hidden shadow-2xs hover:shadow-sm transition-all relative"
                     >
+                      {/* Pinned Post Indicator: Clean minimalist white pin shape on black pill badge positioned neatly at corner */}
+                      {lesson.isPinned && (
+                        <div 
+                          className="absolute top-3 left-4 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black text-white text-[11px] font-semibold shadow-xs select-none"
+                          title="منشور مثبت في الأعلى"
+                        >
+                          <Pin className="w-3.5 h-3.5 fill-white text-white stroke-[2]" />
+                          <span>مثبت</span>
+                        </div>
+                      )}
+
                       {/* Post Header: 
                           - 3. Clean Name KAOUANE fares (Checkmark badge completely REMOVED)
-                          - 2. Pin icon completely REMOVED (post stays silently pinned to top)
-                          - 2. Date Behavior: When pinned, publication date is HIDDEN completely. When unpinned, date is shown.
+                          - 3. Pinned Post Indicator: Minimalist white pin shape at corner
+                          - 3. Date Behavior: When pinned, publication date is HIDDEN completely. When unpinned, date is shown.
                       */}
                       <div className="p-4 sm:p-5 flex items-center justify-between gap-3 border-b border-neutral-100">
                         <div className="flex items-center gap-3">

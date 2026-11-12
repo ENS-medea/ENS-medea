@@ -10,6 +10,8 @@ export interface AttachedPdf {
   name: string;
   size: string;
   url?: string;
+  downloadUrl?: string;
+  viewUrl?: string;
   coverImageUrl?: string;
 }
 

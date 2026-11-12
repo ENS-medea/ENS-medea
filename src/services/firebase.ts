@@ -17,13 +17,13 @@ import {
 import { ModuleItem, LessonItem, CommentItem, SpecializationItem } from '../types';
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyCuFsPYJ5IWHSr-jDeCdNVIDNULPEPk2HU",
-  authDomain: "clasty-zoom1.firebaseapp.com",
-  projectId: "clasty-zoom1",
-  storageBucket: "clasty-zoom1.firebasestorage.app",
-  messagingSenderId: "124857531542",
-  appId: "1:124857531542:web:e9cb443b356864c5f716b7",
-  measurementId: "G-25XG1LRDFG"
+  apiKey: "AIzaSyAkwuXN4ikVt2xDV4N_FRg1sRt1P9QkXrw",
+  authDomain: "clastyzoom-4badf.firebaseapp.com",
+  projectId: "clastyzoom-4badf",
+  storageBucket: "clastyzoom-4badf.firebasestorage.app",
+  messagingSenderId: "332945573289",
+  appId: "1:332945573289:web:35d7a3335e5cc33095f0b8",
+  measurementId: "G-3MTXB3NRS7"
 };
 
 // Initialize Firebase App singleton
@@ -203,7 +203,9 @@ export async function updateModuleLessonsInFirestore(
         id: String(pdf.id || Date.now()),
         name: String(pdf.name || 'document.pdf'),
         size: String(pdf.size || ''),
-        url: String(pdf.url || '#'),
+        url: String(pdf.url || pdf.downloadUrl || '#'),
+        downloadUrl: pdf.downloadUrl ? String(pdf.downloadUrl) : (pdf.url ? String(pdf.url) : null),
+        viewUrl: pdf.viewUrl ? String(pdf.viewUrl) : (pdf.url ? String(pdf.url) : null),
         coverImageUrl: pdf.coverImageUrl ? String(pdf.coverImageUrl) : null,
       })),
       comments: (lesson.comments || []).map(c => ({
@@ -363,6 +365,59 @@ export async function uploadImageToImgBB(file: File, apiKey = 'd89ee562e31505c87
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve((e.target?.result as string) || '');
+    reader.readAsDataURL(file);
+  });
+}
+
+// ==========================================
+// CATBOX.MOE PDF CLOUD STORAGE INTEGRATION
+// ==========================================
+
+export const CATBOX_USER_TOKEN = '20ce74dc0da261425dc134162';
+
+export interface CatboxUploadResult {
+  viewUrl: string;
+  downloadUrl: string;
+}
+
+export async function uploadPdfToCatbox(
+  file: File,
+  userhash: string = CATBOX_USER_TOKEN
+): Promise<CatboxUploadResult> {
+  const formData = new FormData();
+  formData.append('reqtype', 'fileupload');
+  formData.append('userhash', userhash);
+  formData.append('fileToUpload', file);
+
+  try {
+    const response = await fetch('https://catbox.moe/user/api.php', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (response.ok) {
+      const text = (await response.text()).trim();
+      if (text.startsWith('http://') || text.startsWith('https://')) {
+        return {
+          viewUrl: text,
+          downloadUrl: text,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Catbox upload notice (network/cors):', err);
+  }
+
+  // Robust fallback: Generate Data URL for local & offline viewing/downloading
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = (e.target?.result as string) || '#';
+      resolve({
+        viewUrl: dataUrl,
+        downloadUrl: dataUrl,
+      });
+    };
     reader.readAsDataURL(file);
   });
 }
