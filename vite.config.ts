@@ -5,8 +5,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
-    // تحديد المسار الرئيسي للمشروع على GitHub Pages
-    base: '/ENS-medea/',
+    // Support both AI Studio environment (root base '/') and GitHub Pages ('/ENS-medea/')
+    base: process.env.GITHUB_ACTIONS ? '/ENS-medea/' : './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

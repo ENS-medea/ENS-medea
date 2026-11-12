@@ -1244,39 +1244,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white text-black font-['Cairo',sans-serif] selection:bg-black selection:text-white">
       
-      {/* 1. Top Header Bar: Reduced horizontal span by 37% (w-full max-w-[63%] mx-auto) & aligned cleanly */}
+      {/* 1. Top Header Bar: Clean header with logo on far left and back button on far right */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-neutral-200 min-h-[74px] shadow-2xs w-full flex items-center justify-center">
-        <div className="w-full max-w-[63%] mx-auto flex items-center justify-between gap-3 h-full px-2 sm:px-4">
+        <div className="w-full max-w-[63%] mx-auto flex items-center justify-between gap-4 h-full px-2 sm:px-4">
           
-          {/* Far Left Side: App Logo & Back Button if inside module */}
-          <div className="flex items-center gap-2 sm:gap-3 h-full shrink-0" dir="ltr">
-            {/* Return Button: Placed on the far left when activeModule is open */}
-            {activeModule && (
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveModuleId(null);
-                  setLessonSearchQuery('');
-                }}
-                className="p-1.5 sm:p-2 rounded-xl text-black hover:bg-neutral-100 transition-all duration-150 cursor-pointer group flex items-center justify-center shrink-0 border border-neutral-200 shadow-2xs"
-                title="العودة لقائمة المقاييس"
-                aria-label="العودة"
-              >
-                <svg 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2.5" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-0.5 transition-transform"
-                >
-                  <path d="M15 14l5-5-5-5" />
-                  <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13" />
-                </svg>
-              </button>
-            )}
-
+          {/* Far Left Side: App Logo */}
+          <div className="flex items-center h-full shrink-0" dir="ltr">
             {/* Logo Image (7-Tap Hidden Trigger: COMPLETELY SILENT AND INVISIBLE) */}
             <div 
               onClick={handleLogoTap}
@@ -1286,7 +1259,13 @@ export default function App() {
               <img 
                 src={logoAsset} 
                 alt="ENS Medea Logo" 
-                style={{ height: '70px' }}
+                style={{
+                  height: '70px',
+                  marginLeft: '70px',
+                  marginRight: '-70px',
+                  marginTop: '0px',
+                  marginBottom: '0px',
+                }}
                 className="w-auto object-contain transition-transform duration-200 active:scale-95 hover:opacity-95 rounded-sm origin-left"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = NEW_LOGO_URL;
@@ -1295,8 +1274,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right side: Admin Actions */}
-          <div className="flex items-center gap-2 sm:gap-3" dir="rtl">
+          {/* Far Right Side: Back Button & Admin Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0" dir="rtl">
             {/* Admin Status & Logout */}
             {isAdmin && (
               <div className="flex items-center gap-1.5 sm:gap-2 pl-2 border-l border-neutral-200">
@@ -1341,6 +1320,33 @@ export default function App() {
                   </button>
                 )}
               </>
+            )}
+
+            {/* Return / Back Button: Placed on the far right */}
+            {activeModule && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveModuleId(null);
+                  setLessonSearchQuery('');
+                }}
+                className="p-1.5 sm:p-2 rounded-xl text-black hover:bg-neutral-100 transition-all duration-150 cursor-pointer group flex items-center justify-center shrink-0 border border-neutral-200 shadow-2xs"
+                title="العودة لقائمة المقاييس"
+                aria-label="العودة"
+              >
+                <svg 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2.5" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-0.5 transition-transform"
+                >
+                  <path d="M15 14l5-5-5-5" />
+                  <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13" />
+                </svg>
+              </button>
             )}
 
           </div>
